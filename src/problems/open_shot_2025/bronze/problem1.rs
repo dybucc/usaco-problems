@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 enum Outcome {
     Draw,
     Win,
@@ -33,7 +33,7 @@ impl Outcome {
     }
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Clone)]
 struct Input(usize, usize);
 
 impl Input {
@@ -57,11 +57,6 @@ trait Comparator {
 
 impl Comparator for Vec<Input> {
     fn compare(&self, other: &Self, rules: HashMap<Input, Outcome>) -> Self {
-        // sort through the self vector
-        // for each element sort through the other vector
-        // call combine for the self element with other as the other vector's element
-        // this is onesided, so both vectors don't need to sort through all elements, only one does
-        // the one that does will be the one with the possibiliites
         let mut output = vec![];
         let mut checker = vec![];
 
@@ -70,17 +65,16 @@ impl Comparator for Vec<Input> {
                 let result = i.combine(j);
 
                 for r in result {
-                    if rules.contains_key(&r) {
-                        checker.push(rules.get(&r).unwrap());
+                    if rules.contains_key(&r) && *rules.get(&r).unwrap() == Outcome::Draw
+                        || *rules.get(&r).unwrap() == Outcome::Win
+                    {
+                        checker.push((r.clone(), rules.get(&r).unwrap().clone()));
                     }
                 }
 
-                if checker
-                    .iter()
-                    .all(|v| v == Outcome::Draw || v == Outcome::Win)
-                {
-                    for elem in checker {
-                        output.push(*elem);
+                if checker.iter().any(|v| v.1 == Outcome::Win) {
+                    for (elem, _) in &checker {
+                        output.push(elem.clone());
                     }
                 }
 
