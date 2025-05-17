@@ -1,21 +1,8 @@
-// understanding input through example
-// 3 3 => number of possible inputs (>=1) | number of games to process
-//
-// number of possible inputs:
-// D   => posed with 1 1, draw
-// WD  => posed with 2 1, 2 wins; posed with 2 2, draw
-// LWD => posed with 3 1, 1 wins; posed with 3 2, 3 wins; posed with 3 3; draw
-//
-// sample input:
-// 1 2
-// 2 3
-// 1 1
-
 #![allow(unused)]
 
 use std::collections::HashMap;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 enum Outcome {
     Draw,
     Win,
@@ -23,8 +10,18 @@ enum Outcome {
 }
 
 impl Outcome {
-    fn convert(input: &u8) -> Self {
-        match input {
+    fn rev(&self) -> Self {
+        match self {
+            Self::Draw => Self::Draw,
+            Self::Win => Self::Loss,
+            Self::Loss => Self::Win,
+        }
+    }
+}
+
+impl From<&u8> for Outcome {
+    fn from(value: &u8) -> Self {
+        match value {
             b'D' => Self::Draw,
             b'W' => Self::Win,
             b'L' => Self::Loss,
@@ -33,7 +30,7 @@ impl Outcome {
     }
 }
 
-#[derive(Hash, PartialEq, Eq, Clone)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy)]
 struct Input(usize, usize);
 
 impl Input {
@@ -56,31 +53,31 @@ trait Comparator {
 }
 
 impl Comparator for Vec<Input> {
-    fn compare(&self, other: &Self, rules: HashMap<Input, Outcome>) -> Self {
+    fn compare(&self, counter: &Self, rules: HashMap<Input, Outcome>) -> Self {
         let mut output = vec![];
-        let mut checker = vec![];
 
-        for i in self {
-            for j in other {
-                let result = i.combine(j);
+        // for e.g. the counter and the possibilities in that order
+        // 1 2,                                        2 3, 1 1
+        // 1 1, 2 1, 1 2, 2 2, 3 1, 1 3, 3 2, 2 3, 3 3
+        //
+        // 1 1, 2 2, 1 2, 2 1
+
+        for i in counter {
+            for j in self {
+                let mut checker = vec![];
+                let result = j.combine(i);
 
                 for r in result {
-                    if rules.contains_key(&r) && *rules.get(&r).unwrap() == Outcome::Draw
-                        || *rules.get(&r).unwrap() == Outcome::Win
-                    {
-                        checker.push((r.clone(), rules.get(&r).unwrap().clone()));
-                    }
+                    checker.push(*rules.get(&r).unwrap());
                 }
 
-                if checker.iter().any(|v| v.1 == Outcome::Win) {
-                    for (elem, _) in &checker {
-                        output.push(elem.clone());
-                    }
-                }
+                checker.dedup();
 
-                // for e.g. the possibilities and the counter in that order
-                // 1 1, 2 1, 2 2, 3 1, 3 2, 3 3
-                // 1 2, 2 3, 1 1
+                if checker.iter().all(|v| *v != Outcome::Loss)
+                    && checker.iter().any(|v| *v == Outcome::Win)
+                {
+                    output.push(*j);
+                }
             }
         }
 
@@ -95,15 +92,21 @@ fn process_input(input: &str) -> (HashMap<Input, Outcome>, Vec<Input>, Vec<Input
     let games = games.parse().unwrap();
     let (relations, input) = input.split_at(input.find(|v: char| v.is_numeric()).unwrap());
 
+    let mut map: HashMap<Input, Outcome> = HashMap::with_capacity(symbols);
     let mut possibilities = vec![];
     let mut counter = Vec::with_capacity(games);
-    let mut map: HashMap<Input, Outcome> = HashMap::with_capacity(symbols);
 
     for (i, line) in relations.trim().lines().enumerate() {
         for (j, c) in line.as_bytes().iter().enumerate() {
-            if c.is_ascii_alphabetic() {
-                map.insert(Input::new(i + 1, j + 1), Outcome::convert(c));
-                possibilities.push(Input::new(i + 1, j + 1));
+            let dummy: Outcome = c.into();
+
+            map.insert(Input::new(i + 1, j + 1), dummy);
+            possibilities.push(Input::new(i + 1, j + 1));
+
+            // for e.g. 2 1, 2 wins but 1 loses, so 1 2 should have 1 losing and 2 winning
+            if i != j {
+                map.insert(Input::new(j + 1, i + 1), dummy.rev());
+                possibilities.push(Input::new(j + 1, i + 1));
             }
         }
     }
