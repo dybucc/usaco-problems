@@ -49,38 +49,47 @@ impl Input {
 }
 
 trait Comparator {
-    fn compare(&self, other: &Self, rules: HashMap<Input, Outcome>) -> Self;
+    fn compare(&self, counter: &Self, rules: HashMap<Input, Outcome>) -> Vec<u32>;
 }
 
 impl Comparator for Vec<Input> {
-    fn compare(&self, counter: &Self, rules: HashMap<Input, Outcome>) -> Self {
-        let mut output = vec![];
+    fn compare(&self, counter: &Self, rules: HashMap<Input, Outcome>) -> Vec<u32> {
+        let mut output = vec![0; counter.len()];
 
-        // for e.g. the counter and the possibilities in that order
-        // 1 2,                                        2 3, 1 1
-        // 1 1, 2 1, 1 2, 2 2, 3 1, 1 3, 3 2, 2 3, 3 3
-        //
-        // 1 1, 2 2, 1 2, 2 1
+        // for each counter from elsie, analyze each individual number/hoof
+        // the analysis should check if the possibility can win against it for at least one of them
+        // so e.g. if elsie comes up with 2 3, one possibility is to come up with 3 3 as a counter
+        // let's analyze it this way
+        // for 2 in 2 3 against 3 3 => can 3 win against 2? yes, can 3 win against 2, yes
+        // for 3 in 2 3 against 3 3 => can 3 win against 3? no, can 3 win against 3? no
+        // in each one of the previous assertions, there ought to be at least one yes for 3 3 to be
+        // a winning combination
 
-        for i in counter {
+        for (idx, i) in counter.iter().enumerate() {
+            let x = i.0;
+            let y = i.1;
+
             for j in self {
-                let mut checker = vec![];
-                let result = j.combine(i);
+                let mut check1 = false;
+                let mut check2 = false;
 
-                for r in result {
-                    checker.push(*rules.get(&r).unwrap());
+                if *rules.get(&Input::new(j.0, x)).unwrap() == Outcome::Win
+                    || *rules.get(&Input::new(j.1, x)).unwrap() == Outcome::Win
+                {
+                    check1 = true;
                 }
 
-                checker.dedup();
-
-                if checker.iter().all(|v| *v != Outcome::Loss)
-                    && checker.iter().any(|v| *v == Outcome::Win)
+                if *rules.get(&Input::new(j.0, y)).unwrap() == Outcome::Win
+                    || *rules.get(&Input::new(j.1, y)).unwrap() == Outcome::Win
                 {
-                    output.push(*j);
+                    check2 = true;
+                }
+
+                if check1 && check2 {
+                    *output.get_mut(idx).unwrap() += 1;
                 }
             }
         }
-
         output
     }
 }
