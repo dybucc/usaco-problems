@@ -67,7 +67,9 @@ impl Comparator for Vec<Input> {
 
                 if check1 || check2 {
                     *output.get_mut(idx).unwrap() += 1;
+                    #[cfg(debug_assertions)]
                     dbg!(j.0);
+                    #[cfg(debug_assertions)]
                     dbg!(j.1);
                 }
             }
